@@ -1,0 +1,174 @@
+﻿'use strict';
+
+class AddItem extends React.Component {
+	handleAddItem = () => {
+		const newItemTitle = prompt('Введите название дела:');
+		if (newItemTitle) {
+			this.props.clickHandler(newItemTitle);
+		}
+	};
+
+	render() {
+		return <button onClick={this.handleAddItem}>Добавить</button>;
+	}
+}
+
+class StartApp extends React.Component {
+	constructor() {
+		super();
+		this.state = { loaded: false, selected: false, itemsObject: undefined };
+		this.itemsObject = {};
+
+		this.changeSelectedItem = function (name) {
+			this.setState({ selected: name });
+		};
+		this.changeItemState = function (id, state) {
+			this.itemsObject[this.state.selected][id].state = state;
+
+			this.setState({ itemsObject: this.itemsObject });
+		};
+
+		this.addItem = (title) => {
+			const newItem = {
+				id: this.itemsObject[this.state.selected].length,
+				state: false,
+				urgent: false,
+				title: title,
+			};
+			this.itemsObject[this.state.selected].push(newItem);
+			this.setState({ itemsObject: this.itemsObject });
+		};
+
+		fetch('./src/to-do-list.json')
+			.then((response) => response.json())
+			.then((json) => {
+				this.itemsObject = json;
+				this.setState({
+					itemsObject: this.itemsObject,
+					loaded: true,
+				});
+			})
+			.catch((error) => console.log(error));
+	}
+
+	render() {
+		let list, buttons;
+
+		if (this.state.loaded) {
+			if (this.state.itemsObject) {
+				buttons = (
+					<ButtonsList
+						items={this.state.itemsObject}
+						selected={this.state.selected}
+						clickHandler={this.changeSelectedItem.bind(this)}
+					></ButtonsList>
+				);
+			}
+			if (this.state.selected) {
+				list = (
+					<ShoppingList
+						name={this.state.selected}
+						items={this.state.itemsObject[this.state.selected]}
+						clickHandler={this.changeItemState.bind(this)}
+						addItem={this.addItem}
+					></ShoppingList>
+				);
+			}
+		}
+
+		return (
+			<div>
+				<div className='buttons-wrapper'>{buttons}</div>
+				<div className='list-wrapper'>{list}</div>
+			</div>
+		);
+	}
+}
+class ButtonsList extends React.Component {
+	render() {
+		let buttons = [];
+		for (const [name, value] of Object.entries(this.props.items)) {
+			buttons.push(
+				<ButtonItem
+					selected={this.props.selected == name ? true : false}
+					name={name}
+					clickHandler={this.props.clickHandler}
+				></ButtonItem>
+			);
+		}
+
+		return <div className='buttons-list'>{buttons}</div>;
+	}
+}
+class ButtonItem extends React.Component {
+	render() {
+		return (
+			<button
+				className={this.props.selected ? 'selected' : ''}
+				onClick={() => this.props.clickHandler(this.props.name)}
+			>
+				{this.props.name}
+			</button>
+		);
+	}
+}
+class ShoppingList extends React.Component {
+	render() {
+		let items = [];
+		this.props.items.forEach((item) => {
+			items.push(
+				<ShoppingListItem
+					key={this.props.name + '-' + item.id}
+					item={item}
+					clickHandler={this.props.clickHandler}
+				></ShoppingListItem>
+			);
+		});
+		return (
+			<div className='shopping-list'>
+				<h1>Список дел для {this.props.name}</h1>
+				<ul>{items}</ul>
+				<AddItem clickHandler={this.props.addItem}></AddItem>
+			</div>
+		);
+	}
+}
+class ShoppingListItem extends React.Component {
+	constructor(props) {
+		super(props);
+	}
+
+	render() {
+		let className = 'list-item';
+		if (this.props.item.urgent) {
+			className += ' urgent';
+		}
+		if (this.props.item.state) {
+			className += ' done';
+		}
+		return (
+			<li className={className}>
+				<label>
+					<input
+						type='checkbox'
+						checked={this.props.item.state}
+						onChange={() => {
+							this.props.clickHandler(
+								this.props.item.id,
+								!this.props.item.state
+							);
+						}}
+					></input>
+					{this.props.item.title}
+				</label>
+			</li>
+		);
+	}
+}
+
+const rootContainer = document.getElementById('app');
+const root = ReactDOM.createRoot(rootContainer);
+
+// root.render(React.createElement(LikeButton));
+// root.render(<LikeButton></LikeButton>);
+root.render(<StartApp></StartApp>);
